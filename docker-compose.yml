@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: flyway_postgres
+    environment:
+      POSTGRES_DB: demo_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5433:5432" # avoids conflicts on Windows
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  flyway:
+    image: flyway/flyway:10
+    container_name: flyway_migration
+    depends_on:
+      - postgres
+    volumes:
+      - ./flyway/sql:/flyway/sql
+      - ./flyway/conf:/flyway/conf
+    working_dir: /flyway
+    command: >
+      -url=jdbc:postgresql://postgres:5432/demo_db
+      -user=user
+      -password=password
+      -locations=filesystem:/flyway/sql
+      migrate
+
+volumes:
+  db_data:

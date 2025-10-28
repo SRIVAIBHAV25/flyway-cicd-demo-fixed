@@ -1,0 +1,49 @@
+name: Flyway CI Migration
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'flyway/sql/**'   # Trigger only when SQL files change
+
+jobs:
+  flyway-migration:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: demo_db
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U user -d demo_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Wait for PostgreSQL to start
+        run: |
+          echo "Waiting for Postgres..."
+          for i in {1..10}; do
+            pg_isready -h localhost -p 5432 -U user && break
+            sleep 3
+          done
+
+      - name: Run Flyway migrations
+        uses: docker://flyway/flyway:10
+        with:
+          args: >
+            -url=jdbc:postgresql://postgres:5432/demo_db
+            -user=user
+            -password=password
+            -locations=filesystem:flyway/sql
+            migrate
